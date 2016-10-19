@@ -1,0 +1,72 @@
+---
+output: html_document
+---
+#Practiacal Machine Learning Prediction Assignment
+
+##Synopsis
+This assignment is to build a prediction model to apply in the prediction quiz. Two models will be built, a Decision Tree model and a Random Forest model, and evaluated. The model with the better accuracy in predicting on a validation set will be selected.
+
+##Load R Packeges
+```{r}
+library(caret)
+library(randomForest)
+library(rpart)
+library(rattle)
+```
+
+##Load the Data
+```{r}
+Training.Data <- read.csv("pml-training.csv")
+Testing.Data <- read.csv("pml-testing.csv")
+```
+##Clean the Data
+```{r}
+#Remove the subject and timestap data
+Training.Data <- Training.Data[,-(1:5)]
+Testing.Data <- Testing.Data[,-(1:5)]
+
+#Remove variables with near zero variance
+Zero.Var <- nearZeroVar(Training.Data)
+Training.Data <- Training.Data[,-Zero.Var]
+Testing.Data <- Testing.Data[,-Zero.Var]
+
+#Remove Variables that are all NAs
+NAs <- colSums(is.na(Testing.Data))>5
+Training.Data <- Training.Data[, NAs == FALSE]
+Testing.Data <- Testing.Data[, NAs == FALSE]
+```
+
+##Partition the Training Data into a Training and a Validation Set
+```{r}
+set.seed(1316)
+inTrain <- createDataPartition(Training.Data$classe, p = 0.6, list = FALSE)
+Training <- Training.Data[inTrain,]
+Validation <- Training.Data[-inTrain,]
+```
+
+##Random Forests Model
+```{r}
+set.seed(1316)
+model.RF <- train(classe ~ ., data = Training, method = "rf", trControl=trainControl(method = "cv", number = 9), na.action = na.omit)
+model.RF
+varImp(model.RF)
+```
+
+##rpart Model
+```{r}
+set.seed(1316)
+model.rpart <- train(classe ~ . , data = Training, method = "rpart", na.action = na.omit)
+model.rpart
+fancyRpartPlot(model.rpart$finalModel)
+```
+
+##Testing the Models on the Validation Set
+```{r}
+Validate.RF <- predict(model.RF, Validation)
+confusionMatrix(Validation$classe, Validate.RF)
+Validate.Rpart <- predict(model.rpart, Validation)
+confusionMatrix(Validation$classe, Validate.Rpart)
+```
+
+##Model Selection
+Based on the outcome of the validation tests, the Random Forests prediction model as it was 99.8% accurate in the validation test compared to the Decision Tree model at 49.3%
